@@ -1,0 +1,128 @@
+﻿@page "/buynow"
+@using _2.Data.ModelsClass;
+@using _4.Client.IServices;
+@using Microsoft.JSInterop;
+@inject IJSRuntime JSRuntime
+@inject IAllServices services
+@inject NavigationManager navigation
+@if (gioHangChiTiets.Any())
+{
+    <h1>Giỏ hàng </h1>
+    <table class="table table-striped table-bordered table-hover align-middle" style="text-align:center">
+        <thead>
+            <tr class="table-info">
+                <th>Ảnh sản phẩm</th>
+                <th>Tên sản phẩm</th>
+                <th>Giá bán</th>
+                <th>Số lượng</th>
+                <th>Xóa</th>
+                <th class="text-end">Thành tiền</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in gioHangChiTiets)
+            {
+                <tr>
+                    <td><img src=@("/AnhSanPhamClient/"+sanPhams.FirstOrDefault(x=>x.Id == item.IdSanPham).LinkAnh) width="60" /></td>
+                    <td>@(tensp = sanPhams.FirstOrDefault(x => x.Id == item.IdSanPham).Ten)</td>
+                    <td>@item.GiaBan</td>
+                    <td>
+                        <a @onclick="@(()=> TangSl(item.Id))" class="btn btn-sm btn-primary"> + </a>
+                        <a>@item.SoLuong</a>
+                        <a @onclick="@(()=> GiamSl(item.Id))" class="btn btn-sm btn-success"> - </a>
+                    </td>
+
+                    <td><a @onclick="@(()=> Delete(item.Id))" class="btn btn-sm btn-danger">Xóa</a></td>
+                    <td class="text-end">@(thanhtien = item.GiaBan * item.SoLuong)</td>
+                </tr>
+            }
+            <tr>
+                <td class="text-end" colspan="7">
+                    <h6>
+                        Tổng tiền:
+                        <a class="text text-danger text-lg" style="width: auto;">
+                            @tt
+                        </a> 
+                    </h6>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="7" class="text-end">
+                    <a href="/muahang" class="btn btn-primary">Đặt hàng</a>
+
+                </td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="7" class="text-start "><a href="/" class="btn btn-success">Tiếp tục mua</a></td>
+            </tr>
+        </tfoot>
+    </table>
+}
+else
+{
+    <h1> Chưa có sản phẩm nào trong giỏ hàng</h1>
+    <a href="/">về trang chủ</a>
+}
+@code {
+
+    public string tensp;
+    public string idgh;
+    public decimal thanhtien;
+    public decimal tt;
+    private string errorSl = "Vượt quá só lượng trong kho rồi";
+    private List<GioHangChiTiet> gioHangChiTiets = new List<GioHangChiTiet>();
+    private List<SanPham> sanPhams;
+    protected override async Task OnInitializedAsync()
+    {
+
+        sanPhams = await services.GetAll<SanPham>("https://localhost:7095/api/SanPhams/Get-All");
+        gioHangChiTiets = await services.GetAll<GioHangChiTiet>("https://localhost:7095/api/GioHangChiTiets/Get-All");
+        idgh = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idgh");
+        tt = 0;
+        var ls = gioHangChiTiets.Where(x => x.IdGioHang.ToString() == idgh);
+        foreach (var item in ls)
+        {
+            tt += (item.SoLuong * item.GiaBan);
+        }
+    }
+    private async Task Delete(Guid idghct)
+    {
+        await services.Remove<GioHangChiTiet>("https://localhost:7095/api/GioHangChiTiets/GetById/", "https://localhost:7095/api/GioHangChiTiets/Delete/", idghct);
+        await OnInitializedAsync();
+    }
+    private async Task GiamSl(Guid idghct)
+    {
+        var ghct = gioHangChiTiets.FirstOrDefault(x => x.Id == idghct && x.IdGioHang.ToString() == idgh);
+        var sp = sanPhams.FirstOrDefault(x => x.Id == ghct.IdSanPham);
+
+        --ghct.SoLuong;
+        if (ghct.SoLuong <= 0)
+        {
+            await services.Remove<GioHangChiTiet>("https://localhost:7095/api/GioHangChiTiets/GetById/", "https://localhost:7095/api/GioHangChiTiets/Delete/", ghct.Id);
+            await OnInitializedAsync();
+        }
+        await services.Update("https://localhost:7095/api/GioHangChiTiets/Update/", ghct, ghct.Id);
+        await OnInitializedAsync();
+    }
+    private async Task TangSl(Guid idghct)
+    {
+        var ghct = gioHangChiTiets.FirstOrDefault(x => x.Id == idghct);
+        var sp = sanPhams.FirstOrDefault(x => x.Id == ghct.IdSanPham);
+
+        ghct.SoLuong++;
+        if (ghct.SoLuong > sp.SoLuong)
+        {
+            await JSRuntime.InvokeAsync<object>("showAlert", errorSl, 1);
+            await OnInitializedAsync();
+        }
+        else
+        {
+            await services.Update("https://localhost:7095/api/GioHangChiTiets/Update/", ghct, ghct.Id);
+            await OnInitializedAsync();
+        }
+
+    }
+
+}

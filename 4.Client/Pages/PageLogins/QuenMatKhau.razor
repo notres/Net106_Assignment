@@ -1,0 +1,69 @@
+﻿@page "/quenmatkhau"
+@using System.Net.Mail;
+@using System.Net;
+@using _2.Data.ModelClient.DangNhap;
+@using _2.Data.ModelsClass;
+@using _4.Client.IServices;
+@inject IJSRuntime JSRuntime
+@inject IAllServices services
+@inject NavigationManager navigation
+<div class="container">
+    <EditForm Model="modelQuenMK" OnValidSubmit="OnQuenMK">
+        <DataAnnotationsValidator />
+        <div class="login">
+            <div class="login-title" style="text-align:center;"><h1>Quên mật khẩu</h1></div>
+
+            <div class="mb-3 row">
+                <div class="col-sm-2"></div>
+                <label>Nhập Email</label>
+                <InputText class="form-control form-control-lg" @bind-Value="modelQuenMK.Email"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>modelQuenMK.Email"></ValidationMessage>
+                    <small for="Email" class="text-danger"></small>
+                </div>
+            </div>
+
+            <div class="mb-3 row">
+                <div class="col-sm-2"></div>
+                <label>Nhập số điện thoại</label>
+                <InputText class="form-control form-control-lg" @bind-Value="modelQuenMK.SDT"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>modelQuenMK.SDT"></ValidationMessage>
+                    <small for="Email" class="text-danger"></small>
+                </div>
+            </div>
+            <div class="sub" style="text-align:center;">
+                <button type="submit" class="btn btn-dark">
+                    Lấy lại mật khẩu
+                </button>
+                <div class="dangKy">
+                    Bạn chưa có tài khoản? <a href="dangky" class="textLogin">Đăng ký ngay</a>
+                </div>
+                <div class="dangNhap">
+                    Bạn đã có tài khoản? <a href="dangnhap" class="textLogin">Đăng nhập</a>
+                </div>
+            </div>
+        </div>
+    </EditForm>
+
+</div>
+
+@code {
+    QuenMK modelQuenMK = new QuenMK();
+    string error = "Email hoặc số điện thoại không đúng!";
+    private async Task OnQuenMK()
+    {
+        var lstkh = await services.GetAll<KhachHang>("https://localhost:7095/api/KhachHangs/Get-All");
+        var tk = lstkh.FirstOrDefault(x => x.Email == modelQuenMK.Email && x.Sdt == modelQuenMK.SDT);
+        if (tk != null)
+        {
+            string alert = "Mật khẩu của bạn là: " + tk.MatKhau;
+            await JSRuntime.InvokeAsync<object>("showAlert", alert, 1);
+            navigation.NavigateTo("/dangnhap");
+        }
+        else
+        {
+            await JSRuntime.InvokeAsync<object>("showAlert", error, 1);
+        }
+    }
+}

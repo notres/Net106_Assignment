@@ -1,0 +1,225 @@
+﻿@page "/"
+@using _1.API.ViewModels.GioHangChiTiet;
+@using _2.Data.ModelsClass;
+@using _4.Client.IServices;
+@using Microsoft.JSInterop;
+@inject IJSRuntime JSRuntime
+@inject IAllServices services
+@inject NavigationManager navigation
+@inject IAllServices allServices
+@if (sanPhams == null)
+{
+    <div class="spinner-border"></div>
+}
+else
+{
+    <h1 class=" text-center">Sản Phẩm</h1>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-4">
+                <input class="form-control" @onchange="Search" value="@searchInput" type="text" placeholder="Nhập tên sản phẩm" />
+                <br>
+                <select class="form-select" aria-label="Default select example" onchange="@filterByCategory" Value="@idLoai">
+                    <option value="0" selected>Tất cả loại sản phẩm</option>
+                    @foreach (var item in loais)
+                    {
+
+                        <option value="@item.Id">@item.Ten</option>
+                    }
+                </select>
+            </div>
+
+        </div>
+    </div>
+    <hr />
+    <div class="container-fluid">
+        <div class="row">
+            @foreach (var item in sanPhams)
+            {
+                <div class="col-lg-4">
+                    <div class="card" style="width: 23rem; margin-bottom: 30px">
+                        <img src=@("/AnhSanPhamClient/"+item.LinkAnh) class="img-thumbnail">
+                        <div class="card-body">
+                            <h5 class="card-title">@item.Ten</h5>
+                            <h3 class="card-text fw-bold"> @item.GiaBan$</h3>
+                            <div class="d-grid gap-2 d-md-block">
+                                <a class="btn btn-warning"
+                           @onclick="@(() => ThemVaoGioHang(item.Id.ToString()))">
+                                    Thêm vào giỏ hàng
+                                </a>
+                                <a class="btn btn-danger"
+                           @onclick="@(() => MuaNgay(item.Id.ToString()))">
+                                    Mua ngay
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+@code {
+    private List<SanPham> sanPhams;
+    private List<Loai> loais;
+    private string errorSl = "Vượt quá só lượng trong kho rồi";
+    private string successAdd = "Thêm vào giỏ hàng thành công!";
+    string idLoai;
+    string searchInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        sanPhams = (from a in await allServices.GetAll<SanPham>("https://localhost:7095/api/SanPhams/Get-All")
+                    where a.TrangThai == true
+                    select new SanPham()
+                        {
+                            LinkAnh = a.LinkAnh,
+                            Ten = a.Ten,
+                            Id = a.Id,
+                            GiaBan = a.GiaBan
+                        }).ToList();
+        loais = await services.GetAll<Loai>("https://localhost:7095/api/Loais/Get-All");
+    }
+    private async Task ThemVaoGioHang(string idsp)
+    {
+        string idgh = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idgh");
+        string idkh = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idkh");
+        if (idkh == null)
+        {
+            navigation.NavigateTo("/dangnhap");
+        }
+        else
+        {
+            var gh = await services.GetById<GioHang>("https://localhost:7095/api/GioHangs/getbyid/", Guid.Parse(idgh));
+            var sp = await services.GetById<SanPham>("https://localhost:7095/api/sanphams/getbyid/", Guid.Parse(idsp));
+            var lstghct = await services.GetAll<GioHangChiTiet>("https://localhost:7095/api/giohangchitiets/get-all");
+            var ghct = lstghct.FirstOrDefault(x => x.IdGioHang == gh.Id && x.IdSanPham == Guid.Parse(idsp));
+            if (ghct == null)
+            {
+                CreateGioHangChiTiet crghct = new CreateGioHangChiTiet()
+                    {
+                        IdGioHang = gh.Id,
+                        GiaBan = sp.GiaBan,
+                        SoLuong = 1,
+                        IdSanPham = sp.Id
+                    };
+                await services.Add("https://localhost:7095/api/GioHangChiTiets/", crghct);
+                await JSRuntime.InvokeAsync<object>("showAlert", successAdd, 0);
+                navigation.NavigateTo("/");
+            }
+            else
+            {
+                ghct.SoLuong++;
+                if (ghct.SoLuong > sp.SoLuong)
+                {
+                    await JSRuntime.InvokeAsync<object>("showAlert", errorSl, 1);
+                }
+                else
+                {
+                    await services.Update("https://localhost:7095/api/GioHangChiTiets/Update/", ghct, ghct.Id);
+                    await JSRuntime.InvokeAsync<object>("showAlert", successAdd, 1);
+                    navigation.NavigateTo("/");
+                }
+
+            }
+        }
+    }
+    private async Task Search(ChangeEventArgs e)
+    {
+        searchInput = Convert.ToString(e.Value);
+        sanPhams = (from a in await services.GetAll<SanPham>("https://localhost:7095/api/SanPhams/Get-All")
+                    join b in await services.GetAll<Loai>("https://localhost:7095/api/Loais/Get-All") on a.IdLoai equals b.Id
+                    select new SanPham()
+                        {
+                            LinkAnh = a.LinkAnh,
+                            Ten = a.Ten,
+                            Id = a.Id,
+                            GiaBan = a.GiaBan,
+                            IdLoai = b.Id
+                        }).ToList();
+
+        if (!string.IsNullOrEmpty(searchInput))
+        {
+            sanPhams = sanPhams.Where(p => p.Ten.ToLower().Contains(searchInput.ToLower())).ToList();
+        }
+        else
+        {
+            sanPhams = sanPhams;
+        }
+    }
+    private async Task filterByCategory(ChangeEventArgs e)
+    {
+        searchInput = null;
+        idLoai = Convert.ToString(e.Value);
+        sanPhams = (from a in await services.GetAll<SanPham>("https://localhost:7095/api/SanPhams/Get-All")
+                    join b in await services.GetAll<Loai>("https://localhost:7095/api/Loais/Get-All") on a.IdLoai equals b.Id
+                    select new SanPham()
+                        {
+                            LinkAnh = a.LinkAnh,
+                            Ten = a.Ten,
+                            Id = a.Id,
+                            GiaBan = a.GiaBan,
+                            IdLoai = b.Id
+                        }).ToList();
+        if (idLoai == null)
+        {
+            sanPhams = sanPhams;
+        }
+        else
+        {
+            if (idLoai == "0")
+            {
+                sanPhams = sanPhams;
+            }
+            else
+            {
+                sanPhams = sanPhams.Where(x => x.IdLoai == Guid.Parse(idLoai)).ToList();
+            }
+        }
+    }
+    private async Task MuaNgay(string idsp)
+    {
+        string idgh = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idgh");
+        string idkh = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idkh");
+        if (idkh == null)
+        {
+            navigation.NavigateTo("/dangnhap");
+        }
+        else
+        {
+            var gh = await services.GetById<GioHang>("https://localhost:7095/api/GioHangs/getbyid/", Guid.Parse(idgh));
+            var sp = await services.GetById<SanPham>("https://localhost:7095/api/sanphams/getbyid/", Guid.Parse(idsp));
+            var lstghct = await services.GetAll<GioHangChiTiet>("https://localhost:7095/api/giohangchitiets/get-all");
+            var ghct = lstghct.FirstOrDefault(x => x.IdGioHang == gh.Id && x.IdSanPham == Guid.Parse(idsp));
+            if (ghct == null)
+            {
+                CreateGioHangChiTiet crghct = new CreateGioHangChiTiet()
+                    {
+                        IdGioHang = gh.Id,
+                        GiaBan = sp.GiaBan,
+                        SoLuong = 1,
+                        IdSanPham = sp.Id
+                    };
+                await services.Add("https://localhost:7095/api/GioHangChiTiets/", crghct);
+
+                navigation.NavigateTo("/buynow");
+            }
+            else
+            {
+                ghct.SoLuong++;
+                if (ghct.SoLuong > sp.SoLuong)
+                {
+                    await JSRuntime.InvokeAsync<object>("showAlert", errorSl, 1);
+                }
+                else
+                {
+                    await services.Update("https://localhost:7095/api/GioHangChiTiets/Update/", ghct, ghct.Id);
+                    navigation.NavigateTo("/buynow");
+                }
+
+            }
+
+        }
+
+    }
+}

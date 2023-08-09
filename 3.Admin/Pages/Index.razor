@@ -1,0 +1,74 @@
+﻿@page "/"
+@using _2.Data.ModelsClass;
+@using _3.Admin.IServices;
+@inject IAllServices services
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+<h3>Danh Sách Hóa Đơn Chờ</h3>
+
+@if (hoaDons == null)
+{
+    <div class="spinner-border"></div>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>
+                    Mã hóa đơn
+                </th>
+                <th>
+                    Ngày tạo
+                </th>
+                <th>
+                    Chi tiết hóa đơn
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in hoaDons)
+            {
+                <tr>
+                    <td>
+                        @item.MaHoaDon
+                    </td>
+                    <td>
+                        @item.NgayTao
+                    </td>
+                    <td>
+                        <a class="btn btn-outline-success" href="/viewhoadonchitiet/@item.Id">Chi Tiết</a>
+
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+}
+
+
+@code {
+    private List<HoaDon> hoaDons;
+    protected override async Task OnInitializedAsync()
+    {
+        hoaDons = (from a in await services.GetAll<HoaDon>("https://localhost:7095/api/hoadons/Get-All")
+                   where a.TrangThai == 1
+                   select a).ToList();
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            string idnv = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idnv");
+            if (idnv == null)
+            {
+                navigation.NavigateTo("/dangnhap");
+            }
+            else
+            {
+                await OnInitializedAsync();
+            }
+        }
+    }
+}

@@ -1,0 +1,116 @@
+﻿@page "/muahang"
+@using _1.API.ViewModels.HoaDon;
+@using _1.API.ViewModels.HoaDonChiTiet;
+@using _2.Data.ModelsClass;
+@using _4.Client.IServices;
+@inject IAllServices services
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+<h3>Đặt hàng </h3>
+@if (gioHangChiTiets.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Ảnh sản phẩm</th>
+                <th>Tên sản phẩm</th>
+                <th>Giá bán</th>
+                <th>Số lượng</th>
+                <th class="text-end">Thành tiền</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in gioHangChiTiets)
+            {
+                <tr>
+                    <td><img src=@("/AnhSanPhamClient/"+sanPhams.FirstOrDefault(x=>x.Id == item.IdSanPham).LinkAnh) width="60" /></td>
+                    <td>@(tensp = sanPhams.FirstOrDefault(x => x.Id == item.IdSanPham).Ten)</td>
+                    <td>@item.GiaBan</td>
+                    <td> <a>@item.SoLuong</a></td>
+                    <td class="text-end">@(thanhtien = item.GiaBan * item.SoLuong)</td>
+
+                </tr>
+            }
+            <tr>
+                <td class="text-end" colspan="7"><h6>Tổng tiền: @tt</h6> </td>
+            </tr>
+            <tr>
+                <td colspan="7" class="text-end">
+
+                    <a asp-action="CheckOut" @onclick="()=>CheckOut(tt)" class="btn btn-success">Thanh toán</a>
+                </td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="7" class="text-start "><a asp-controller="Home" asp-action="Index" class="btn btn-success">Tiếp tục mua</a></td>
+            </tr>
+        </tfoot>
+    </table>
+}
+else
+{
+    <h1> Chưa có sản phẩm nào trong giỏ hàng</h1>
+    <a href="/">về trang chủ</a>
+}
+@code {
+    public string tensp;
+    public string idgh;
+    public string idkh;
+    public decimal thanhtien;
+    public decimal tt;
+    private string errorSl = "Tạo đơn hàng thành công. Cảm ơn bạn đã mua hàng, hãy chú ý điện thoại chúng tôi sẽ gọi điện xác nhận cho bạn.";
+    private List<GioHangChiTiet> gioHangChiTiets = new List<GioHangChiTiet>();
+    private List<SanPham> sanPhams;
+    protected override async Task OnInitializedAsync()
+    {
+        sanPhams = await services.GetAll<SanPham>("https://localhost:7095/api/SanPhams/Get-All");
+        gioHangChiTiets = await services.GetAll<GioHangChiTiet>("https://localhost:7095/api/GioHangChiTiets/Get-All");
+        idgh = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idgh");
+        idkh = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idkh");
+        tt = 0;
+        var ls = gioHangChiTiets.Where(x => x.IdGioHang.ToString() == idgh);
+        foreach (var item in ls)
+        {
+            tt += (item.SoLuong * item.GiaBan);
+        }
+    }
+    private async Task CheckOut(decimal tt)
+    {
+        var kh = await services.GetById<KhachHang>("https://localhost:7095/api/KhachHangs/GetById/", Guid.Parse(idkh));
+        var ghct = gioHangChiTiets.Where(x => x.IdGioHang.ToString() == idgh);
+        CreateHoaDon hd = new CreateHoaDon()
+            {
+                Id = Guid.NewGuid(),
+                IdKhachHang = Guid.Parse(idkh),
+                NgayTao = DateTime.Now,
+                TrangThai = 1,
+                TongTien = tt,
+                DiaChi = kh.DiaChi,
+            };
+        await services.Add("https://localhost:7095/api/hoadons/", hd);
+        foreach (var item in ghct)
+        {
+            var sl = sanPhams.FirstOrDefault(x => x.Id == item.IdSanPham);
+            CreateHoaDonChiTiet hdct = new CreateHoaDonChiTiet()
+            {
+                IdHoaDon = hd.Id,
+                IdSanPham = item.IdSanPham,
+                GiaBan = item.GiaBan,
+                SoLuong = item.SoLuong,
+            };
+            sl.SoLuong -= item.SoLuong;
+            if (sl.SoLuong == 0)
+            {
+                sl.TrangThai = false;
+                await services.Update("https://localhost:7095/api/sanphams/update/", sl, sl.Id);
+            }
+            await services.Update("https://localhost:7095/api/sanphams/update/", sl, sl.Id);
+            await services.Add("https://localhost:7095/api/HoaDonChiTiets/", hdct);
+            await services.Remove<GioHangChiTiet>("https://localhost:7095/api/giohangchitiets/getbyid", "https://localhost:7095/api/giohangchitiets/delete/", item.Id);
+        }
+        //(tên function, nội dung muốn thông báo, sét tham out)
+        await JSRuntime.InvokeAsync<object>("showAlert", errorSl, 1);
+        navigation.NavigateTo("/");
+    }
+}

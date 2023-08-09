@@ -1,0 +1,276 @@
+﻿@page "/viewnhanvien"
+@using _1_API.ViewModel.NhanVien;
+@using _2.Data.ModelsClass;
+@using _3.Admin.Helper;
+@using _3.Admin.IServices;
+@using System.Linq;
+@inject IAllServices services
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+<h3>Nhân Viên</h3>
+@if (nhanViens == null)
+{
+    <div class="spinner-border"></div>
+}
+else
+{
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <div class="row g-3 float-start">
+                <div class="col-auto ">
+                    <input class="form-control" @onchange="Search" value="@searchInput" type="text" placeholder="Nhập tên nhân viên" />
+                </div>
+                <div class="col-auto">
+                    <select class="form-select" aria-label="Default select example" onchange="@filterByRole" Value="@idChucVu">
+                        <option value="0" selected>Tất cả nhân viên</option>
+                        @foreach (var item in chucVus)
+                        {
+
+                            <option value="@item.Id">@item.Ten</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+        </div>
+    </div>
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Ảnh</th>
+                <th>
+                    Email
+                </th>
+                <th>
+                    Mật Khẩu
+                </th>
+                <th>
+                    Tên
+                </th>
+                <th>
+                    Địa Chỉ
+                </th>
+                <th>
+                    Số điện thoại
+                </th>
+                <th>
+                    Trạng thái
+                </th>
+                <th>
+                    Chức Vụ
+                </th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in lst)
+            {
+                <tr>
+                    <td>
+                        @if (item.AnhNhanVien == "")
+                        {
+                            <img src="@("/AnhNhanVien/default.png")" alt="@("/AnhNhanVien/avt.jpg")" width="70" />
+                        }
+                        else
+                        {
+                            <img src="@("/AnhNhanVien/"+item.AnhNhanVien)" alt="@("/AnhNhanVien/avt.jpg")" width="70" />
+                        }
+                    </td>
+                    <td>
+                        @item.Email
+                    </td>
+                    <td>
+                        @item.MatKhau
+                    </td>
+                    <td>
+                        @item.Ten
+                    </td>
+                    <td>
+                        @item.DiaChi
+                    </td>
+                    <td>
+                        @item.Sdt
+                    </td>
+                    <td>
+                        @item.TrangThai
+                    </td>
+                    <td>
+                        @item.ChucVu
+                    </td>
+                    <td>
+                        <a class="btn btn-success" href="/editnhanvien/@item.Id">Edit</a>
+                        <a class="btn btn-success" href="/detailnhanvien/@item.Id">Details</a>
+                        <button class="btn btn-danger" @onclick="()=>DeleteNhanVien(item.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <Confirmation ConfirmationMessge="Bạn có chắc muốn cập nhập trạng thái của nhân viên?"
+              ConfirmationTitle="Cập nhập trạng thái nhân viên"
+              @ref="confirmation"
+              ConfirmationChanged="OnConfirmDeleteNhanVien">
+
+    </Confirmation>
+    <a href="nhanviencreate" class="btn btn-success">Create</a>
+
+}
+
+@code {
+    private List<NhanVien> nhanViens;
+    private List<ChucVu> chucVus;
+    protected Confirmation confirmation { get; set; }
+    private Guid NhanVienId { get; set; }
+    private string searchInput;
+    private string idChucVu;
+    private string idnv;
+    private List<NhanVienView> lst;
+    protected override async Task OnInitializedAsync()
+    {
+        nhanViens = await services.GetAll<NhanVien>("https://localhost:7095/api/NhanViens/Get-All");
+        chucVus = await services.GetAll<ChucVu>("https://localhost:7095/api/ChucVus/Get-All");
+        lst = (from a in nhanViens.ToList()
+               join b in chucVus.ToList() on a.IdChucVu equals b.Id
+               select new NhanVienView()
+                   {
+                       Id = a.Id,
+                       Ten = a.Ten,
+                       MatKhau = a.MatKhau,
+                       ChucVu = b.Ten,
+                       Email = a.Email,
+                       Sdt = a.Sdt,
+                       DiaChi = a.DiaChi,
+                       AnhNhanVien = a.AnhNhanVien,
+                       TrangThai = a.TrangThai ? "Đang hoạt động" : "Ngưng hoạt động"
+                   }).ToList();
+
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            idnv = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idnv");
+            if (idnv == null)
+            {
+                navigation.NavigateTo("/dangnhap");
+            }
+            else
+            {
+                await OnInitializedAsync();
+            }
+        }
+
+
+    }
+    private void Search(ChangeEventArgs e)
+    {
+        searchInput = Convert.ToString(e.Value);
+        lst = (from a in nhanViens.ToList()
+               join b in chucVus.ToList() on a.IdChucVu equals b.Id
+               select new NhanVienView()
+                   {
+                       Id = a.Id,
+                       Ten = a.Ten,
+                       MatKhau = a.MatKhau,
+                       ChucVu = b.Ten,
+                       Email = a.Email,
+                       Sdt = a.Sdt,
+                       DiaChi = a.DiaChi,
+                       AnhNhanVien = a.AnhNhanVien,
+                       TrangThai = a.TrangThai ? "Đang hoạt động" : "Ngưng hoạt động"
+                   }).ToList();
+        if (!string.IsNullOrEmpty(searchInput))
+        {
+            if (lst.Count == 0)
+            {
+                lst = lst;
+            }
+            else
+            {
+                lst = lst.Where(p => p.Ten.ToLower().Contains(searchInput.ToLower())).ToList();
+            }
+        }
+        else
+        {
+            lst = lst;
+        }
+
+    }
+    private void filterByRole(ChangeEventArgs e)
+    {
+        searchInput = null;
+        idChucVu = Convert.ToString(e.Value);
+        lst = (from a in nhanViens.ToList()
+               join b in chucVus.ToList() on a.IdChucVu equals b.Id
+               select new NhanVienView()
+                   {
+                       Id = a.Id,
+                       IdChucVu = a.IdChucVu,
+                       Ten = a.Ten,
+                       MatKhau = a.MatKhau,
+                       ChucVu = b.Ten,
+                       Email = a.Email,
+                       Sdt = a.Sdt,
+                       DiaChi = a.DiaChi,
+                       AnhNhanVien = a.AnhNhanVien,
+                       TrangThai = a.TrangThai ? "Đang hoạt động" : "Ngưng hoạt động"
+                   }).ToList();
+        if (idChucVu == null)
+        {
+            lst = lst;
+        }
+        else
+        {
+            if (idChucVu == "0")
+            {
+                lst = lst;
+            }
+            else
+            {
+                lst = lst.Where(x => x.IdChucVu == Guid.Parse(idChucVu)).ToList();
+            }
+        }
+
+    }
+    public void DeleteNhanVien(Guid nhanVienId)
+    {
+        NhanVienId = nhanVienId;
+        confirmation.Show();
+    }
+    public async Task OnConfirmDeleteNhanVien(bool confirm)
+    {
+        if (confirm)
+        {
+            var nv = await services.GetById<NhanVien>("https://localhost:7095/api/NhanViens/GetById/", NhanVienId);
+
+            if (nv.TrangThai == false)
+            {
+                await JSRuntime.InvokeAsync<object>("showAlert", "Nhân viên đã ngưng hoạt động rồi", 5);
+            }
+            else
+            {
+                nv.TrangThai = false;
+                await services.Update<NhanVien>("https://localhost:7095/api/NhanViens/Update/", nv, NhanVienId);
+                nhanViens = await services.GetAll<NhanVien>("https://localhost:7095/api/NhanViens/Get-All");
+                chucVus = await services.GetAll<ChucVu>("https://localhost:7095/api/ChucVus/Get-All");
+                lst = (from a in nhanViens.ToList()
+                       join b in chucVus.ToList() on a.IdChucVu equals b.Id
+                       select new NhanVienView()
+                           {
+                               Id = a.Id,
+                               IdChucVu = a.IdChucVu,
+                               Ten = a.Ten,
+                               MatKhau = a.MatKhau,
+                               ChucVu = b.Ten,
+                               Email = a.Email,
+                               Sdt = a.Sdt,
+                               DiaChi = a.DiaChi,
+                               AnhNhanVien = a.AnhNhanVien,
+                               TrangThai = a.TrangThai ? "Đang hoạt động" : "Ngưng hoạt động"
+                           }).ToList();
+            }
+
+        }
+    }
+}

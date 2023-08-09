@@ -1,0 +1,125 @@
+﻿@page "/viewhoadonchitiet/{HoaDonId}"
+@using _2.Data.ModelsClass;
+@using _3.Admin.IServices;
+@using _3.Admin.Helper;
+@inject IAllServices services
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@if (hdct == null)
+{
+        <div class="spinner-border"></div>
+}
+else
+{
+        <h3>Hóa đơn chi tiết</h3>
+        <br />
+        <p>Mã hóa đơn: @hd.MaHoaDon</p>
+        <p>Tên khách hàng: @kh.Ten</p>
+        <p>SDT:            @kh.Sdt</p>
+        <p>Địa chỉ:        @kh.DiaChi</p>
+        <p>Tổng tiền:      <span class="text fw-bold text-danger">@tongtien</span>  </p>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>
+                        Tên Sản Phẩm
+                    </th>
+                    <th>
+                        Số Lượng
+                    </th>
+                    <th>
+                        Giá Bán
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in hdct)
+            {
+                        <tr>
+                            <td>
+                        @(tensp = sanPhams.FirstOrDefault(x => x.Id == item.IdSanPham).Ten)
+                            </td>
+                            <td>
+                        @item.SoLuong
+                            </td>
+                            <td>
+                        @item.GiaBan
+                            </td>
+                        </tr>
+            }
+            </tbody>
+        </table>
+        <div class="row">
+            <div class="col-md-4"></div>
+            <div class="col-md-4" style="text-align:center">
+                <button class="btn btn-outline-success" @onclick="()=>XacNhanHoaDon(Guid.Parse(HoaDonId))">Xác nhận</button>
+                <button class="btn btn-outline-danger" @onclick="DeleteHoaDon">Delete</button>
+            </div>
+            <div class="col-md-4"></div>
+        </div>
+        <Confirmation ConfirmationMessge="Bạn chắc chắn muốn xóa hóa đơn?"
+              ConfirmationTitle="Xóa hóa đơn"
+              @ref="confirmation"
+              ConfirmationChanged="OnConfirmDeleteHoaDon">
+
+        </Confirmation>
+}
+
+@code {
+    [Parameter]
+    public string HoaDonId { get; set; }
+    private List<HoaDonChiTiet> hdct;
+    private List<SanPham> sanPhams;
+    protected Confirmation confirmation { get; set; }
+    private KhachHang kh;
+    private HoaDon hd;
+    decimal tongtien = 0;
+    string tensp;
+    string xacnhanhoadon = "Xác nhận đơn hàng thành công!";
+    protected override async Task OnInitializedAsync()
+    {
+        string idnv = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idnv");
+        if (idnv == null)
+        {
+            navigation.NavigateTo("/dangnhap");
+        }
+        else
+        {
+            hd = await services.GetById<HoaDon>("https://localhost:7095/api/HoaDons/GetById/", Guid.Parse(HoaDonId));
+            var lstkh = await services.GetAll<KhachHang>("https://localhost:7095/api/khachhangs/get-all/");
+            var lsthdct = await services.GetAll<HoaDonChiTiet>("https://localhost:7095/api/HoaDonChiTiets/get-all/");
+            sanPhams = await services.GetAll<SanPham>("https://localhost:7095/api/SanPhams/get-all/");
+            kh = lstkh.FirstOrDefault(x => x.Id == hd.IdKhachHang);
+            hdct = lsthdct.Where(x => x.IdHoaDon == Guid.Parse(HoaDonId)).ToList();
+            foreach (var item in hdct)
+            {
+                tongtien += (item.SoLuong * item.GiaBan);
+            }
+
+        }
+    }
+
+    private async Task XacNhanHoaDon(Guid idhd)
+    {
+        string idnv = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idnv");
+        hd.TrangThai = 2;
+        hd.IdNhanVien = Guid.Parse(idnv);
+        await services.Update("https://localhost:7095/api/HoaDons/Update/", hd, idhd);
+        await JSRuntime.InvokeAsync<object>("showAlert", xacnhanhoadon, 1);
+        navigation.NavigateTo("/");
+    }
+    private async Task DeleteHoaDon()
+    {
+        confirmation.Show();
+    }
+    private async Task OnConfirmDeleteHoaDon(bool confirm)
+    {
+        if (confirm)
+        {
+            await services.Remove<HoaDon>("https://localhost:7095/api/HoaDons/GetById/", "https://localhost:7095/api/HoaDons/Delete/", hd.Id);
+            navigation.NavigateTo("/");
+        }
+    }
+
+}

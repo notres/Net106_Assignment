@@ -1,0 +1,157 @@
+﻿@page "/sanphamcreate"
+@using _1.API.ViewModels.SanPham;
+@using _2.Data.ModelsClass;
+@using _3.Admin.IServices;
+@inject IAllServices services
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject IWebHostEnvironment _webHost
+<h3>Create</h3>
+
+<EditForm Model="crSP" OnValidSubmit="SubmitSanPham">
+    <DataAnnotationsValidator />
+    @if (errorGia != null)
+    {
+        <div class="alert alert-danger">@errorGia</div>
+    }
+    <div class="form-group">
+        <label for="Ten" class="control-label">Tên</label>
+        <InputText class="form-control" @bind-Value="crSP.Ten"></InputText>
+        <ValidationMessage For="()=>crSP.Ten"></ValidationMessage>
+        <small for="Ten" class="text-danger"></small>
+        @if (errorTen != null)
+        {
+            <div class="alert alert-danger">@errorTen</div>
+        }
+    </div>
+    <div class="form-group">
+        <label for="GiaNhap" class="control-label">Giá nhập</label>
+        <input class="form-control" @bind-value="crSP.GiaNhap" type="number" step="0.01">
+        <ValidationMessage For="()=>crSP.GiaNhap"></ValidationMessage>
+        <small for="GiaNhap" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label for="GiaBan" class="control-label">Giá bán</label>
+        <input class="form-control" @bind-value="crSP.GiaBan" type="number" step="0.01">
+        <ValidationMessage For="()=>crSP.GiaBan"></ValidationMessage>
+        <small for="GiaBan" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label for="SoLuong" class="control-label">Số lượng</label>
+        <input class="form-control" @bind-value="crSP.SoLuong" type="number" step="0.01">
+        <ValidationMessage For="()=>crSP.SoLuong"></ValidationMessage>
+        <small for="SoLuong" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label asp-for="TrangThai" class="control-label">Trạng thái</label>
+        <InputSelect class="form-control" @bind-Value="crSP.TrangThai">
+            <option value="true" selected>Đang Bán</option>
+            <option value="false">Ngừng Bán</option>
+        </InputSelect>
+        <ValidationMessage For="()=>crSP.TrangThai"></ValidationMessage>
+        <small for="TrangThai" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label for="IdChucVu" class="control-label">Loại sản phẩm</label>
+        <InputSelect class="form-control" @bind-Value="crSP.IdLoai">
+            @if (loais == null)
+            {
+                   <div class="spinner-border"></div>
+            }
+            else
+            {
+                <option value="" selected>Chọn Loại sản phẩm</option>
+                @foreach (var item in loais)
+                {
+                    <option value="@item.Id">@item.Ten</option>
+                }
+            }
+
+        </InputSelect>
+        <ValidationMessage For="()=>crSP.IdLoai"></ValidationMessage>
+        <small for="IdChucVu" class="text-danger"></small>
+    </div>
+    <div class="col-md-2">
+        <div class="row">
+            <label for="AnhNhanVien" class="control-label">Ảnh</label>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ImageUrl))
+        {
+            <img src="@ImageUrl" alt="Ảnh Sản phẩm" width="100" />
+        }
+        <div class="custom-file mt-2">
+            <InputFile class="form-control form-control-sm form-control-file" @bind-Value="crSP.LinkAnh" OnChange="HandleSelectedFile" />
+            <small for="AnhNhanVien" class="text-danger"></small>
+        </div>
+    </div>
+    <br />
+    <button type="submit" class="btn btn-primary">Create</button>
+    <a href="viewsanpham">Back to List</a>
+</EditForm>
+@code {
+    private CreateSanPham crSP = new CreateSanPham();
+    private List<Loai> loais;
+    private List<SanPham> sanPhams;
+    private string errorTen;
+    private string errorGia; 
+    private string ImageUrl;
+    protected override async Task OnInitializedAsync()
+    {
+        loais = await services.GetAll<Loai>("https://localhost:7095/api/Loais/Get-All");
+    }
+    private async Task HandleSelectedFile(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            var buffer = new byte[file.Size];
+            await file.OpenReadStream().ReadAsync(buffer);
+            var imageUrl = $"data:image/png;base64,{Convert.ToBase64String(buffer)}";
+            ImageUrl = imageUrl;
+
+            string uploadFolder = Path.Combine(_webHost.WebRootPath, "AnhSanPham");
+            string uploadFolderClient = Path.Combine("D:\\cSharp\\NET106\\Net106_Assignment-master\\Net106_Assignment-master\\4.Client\\wwwroot\\", "AnhSanPhamClient");
+
+            string folder = Guid.NewGuid().ToString() + "_" + file.Name;
+
+            crSP.LinkAnh = folder;
+
+            string severfolder = Path.Combine(uploadFolder, folder);
+            string severfolderClient = Path.Combine(uploadFolderClient, folder);
+
+            await file.OpenReadStream().CopyToAsync(new FileStream(severfolder, FileMode.Create));
+            await file.OpenReadStream().CopyToAsync(new FileStream(severfolderClient, FileMode.Create));
+
+
+        }
+    }
+    private async Task SubmitSanPham(EditContext editContext)
+    {
+        sanPhams = await services.GetAll<SanPham>("https://localhost:7095/api/sanphams/Get-All");
+        if (sanPhams.FirstOrDefault(x => x.Ten == crSP.Ten) != null)
+        {
+            errorTen = "Tên đã được sử dụng, hãy nhập tên khác";
+            crSP.Ten = null;
+        }
+        else if (crSP.GiaNhap > crSP.GiaBan || crSP.GiaBan < 0 || crSP.GiaNhap < 0 || crSP.GiaBan == crSP.GiaNhap)
+        {
+            errorGia = "Sai giá, nhập lại giá";
+            crSP.GiaNhap = 0;
+            crSP.GiaBan = 0;
+            errorTen = null;
+        }
+        else if (string.IsNullOrEmpty(crSP.LinkAnh))
+        {
+            errorGia = null;
+            errorTen = null;
+            await JSRuntime.InvokeAsync<object>("showAlert", "Vui lòng chọn ảnh cho sản phẩm", 5);
+        }
+        else
+        {
+            await services.Add("https://localhost:7095/api/sanphams/", crSP);
+            navigation.NavigateTo("/viewsanpham");
+        }
+
+    }
+}

@@ -1,0 +1,180 @@
+﻿@page "/editnhanvien/{NhanVienId}"
+
+@using _1.API.ViewModels.NhanVien;
+@using _2.Data.ModelsClass;
+@using _3.Admin.IServices;
+@inject IAllServices services
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject IWebHostEnvironment _webHost
+@if (nv == null)
+{
+        <div class="spinner-border"></div>
+}
+
+else
+{
+        <h3>Edit </h3>
+        <EditForm Model="nv" OnValidSubmit="SubmitNhanVien">
+            <DataAnnotationsValidator />
+            <div class="form-group">
+                <label for="Ten" class="control-label">Họ và tên</label>
+                <InputText class="form-control" @bind-Value="nv.Ten"></InputText>
+                <ValidationMessage For="()=>nv.Ten"></ValidationMessage>
+                <small for="nameHelp" class="text-danger"></small>
+            </div>
+            <div class="form-group">
+                <label for="Email" class="control-label">Email</label>
+                <InputText class="form-control" @bind-Value="nv.Email" readonly></InputText>
+                <ValidationMessage For="()=>nv.Email"></ValidationMessage>
+                <small for="Email" class="text-danger"></small>
+            </div>
+            <div class="form-group">
+                <label for="MatKhau" class="control-label">Mật Khẩu</label>
+                <InputText class="form-control" @bind-Value="nv.MatKhau"></InputText>
+                <ValidationMessage For="()=>nv.MatKhau"></ValidationMessage>
+                <small for="MatKhau" class="text-danger"></small>
+            </div>
+            <div class="form-group">
+                <label for="DiaChi" class="control-label">Địa Chỉ</label>
+                <InputText class="form-control" @bind-Value="nv.DiaChi"></InputText>
+                <ValidationMessage For="()=>nv.DiaChi"></ValidationMessage>
+                <small for="DiaChi" class="text-danger"></small>
+            </div>
+            <div class="form-group">
+                <label for="Sdt" class="control-label">Số điện thoại</label>
+                <InputText class="form-control" @bind-Value="nv.Sdt" readonly></InputText>
+                <ValidationMessage For="()=>nv.Sdt"></ValidationMessage>
+                <small for="Sdt" class="text-danger"></small>
+            </div>
+            <div class="form-group">
+                <label for="GioiTinh" class="control-label">Giới tính</label>
+                <InputSelect class="form-control" @bind-Value="nv.GioiTinh">
+                    <option value="true">Nam</option>
+                    <option value="false">Nữ</option>
+                </InputSelect>
+                <ValidationMessage For="()=>nv.GioiTinh"></ValidationMessage>
+                <small for="GioiTinh" class="text-danger"></small>
+            </div>
+            <div class="form-group">
+                <label asp-for="TrangThai" class="control-label">Trạng thái</label>
+                <InputSelect class="form-control" @bind-Value="nv.TrangThai">
+                    <option value="true">Đang hoạt động</option>
+                    <option value="false">Ngừng hoạt động</option>
+                </InputSelect>
+                <ValidationMessage For="()=>nv.TrangThai"></ValidationMessage>
+                <small for="TrangThai" class="text-danger"></small>
+            </div>
+            <div class="form-group">
+                <label for="ChucVuj" class="control-label">Chức Vụ</label>
+                <InputSelect class="form-control" @bind-Value="nv.IdChucVu">
+                @if (chucVus == null)
+                {
+                            <div class="spinner-border"></div>
+                }
+                else
+                {
+                    @foreach (var item in chucVus)
+                    {
+                                    <option value="@item.Id">@item.Ten</option>
+                    }
+                }
+
+                </InputSelect>
+                <ValidationMessage For="()=>nv.IdChucVu"></ValidationMessage>
+                <small for="GioiTinh" class="text-danger"></small>
+            </div>
+            <div class="col-md-2">
+                <div class="row">
+                    <label for="AnhNhanVien" class="control-label">Ảnh</label>
+                </div>
+
+            @if (!string.IsNullOrEmpty(ImageUrl))
+            {
+                        <img src="@ImageUrl" alt="Ảnh Nhân viên" width="100" />
+            }
+            else
+            {
+                        <img src="@("/AnhNhanVien/"+nv.AnhNhanVien)" alt="Ảnh Nhân viên" width="100" />
+            }
+                <div class="custom-file mt-2">
+                    <InputFile class="form-control form-control-sm form-control-file" @bind-Value="nv.AnhNhanVien" OnChange="HandleSelectedFile" />
+                @*                <ValidationMessage For="()=>nv.AnhNhanVien"></ValidationMessage>
+            <small for="TrangThai" class="text-danger"></small>
+            <span asp-validation-for="AnhNhanVien" class="text-danger"></span>*@
+                </div>
+            </div>
+            <br />
+            <button type="submit" class="btn btn-primary">Edit</button>
+            <a href="viewnhanvien">Back to List</a>
+        </EditForm>
+}
+
+@code {
+    [Parameter]
+    public string NhanVienId { get; set; }
+
+    private UpdateNhanVien nv;
+    private List<ChucVu> chucVus;
+    private List<NhanVien> nhanViens;
+    private string ImageUrl;
+
+    protected async override Task OnInitializedAsync()
+    {
+        var upnv = await services.GetById<NhanVien>("https://localhost:7095/api/NhanViens/GetById/", Guid.Parse(NhanVienId));
+        chucVus = await services.GetAll<ChucVu>("https://localhost:7095/api/ChucVus/Get-All");
+        nv = new UpdateNhanVien();
+        nv.Ten = upnv.Ten;
+        nv.AnhNhanVien = upnv.AnhNhanVien;
+        nv.Email = upnv.Email;
+        nv.MatKhau = upnv.MatKhau;
+        nv.DiaChi = upnv.DiaChi;
+        nv.GioiTinh = upnv.GioiTinh;
+        nv.Sdt = upnv.Sdt;
+        nv.TrangThai = upnv.TrangThai;
+        nv.IdChucVu = upnv.IdChucVu;
+    }
+    private async Task HandleSelectedFile(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            var buffer = new byte[file.Size];
+            await file.OpenReadStream().ReadAsync(buffer);
+            var imageUrl = $"data:image/png;base64,{Convert.ToBase64String(buffer)}";
+            ImageUrl = imageUrl;
+
+            string uploadFolder = Path.Combine(_webHost.WebRootPath, "AnhNhanVien");
+            string uploadFolderClient = Path.Combine("D:\\cSharp\\NET106\\Net106_Assignment-master\\Net106_Assignment-master\\4.Client\\wwwroot\\", "AnhNhanVienClient");
+
+            string folder = Guid.NewGuid().ToString() + "_" + file.Name;
+
+            nv.AnhNhanVien = folder;
+
+            string severfolder = Path.Combine(uploadFolder, folder);
+            string severfolderClient = Path.Combine(uploadFolderClient, folder);
+
+            await file.OpenReadStream().CopyToAsync(new FileStream(severfolder, FileMode.Create));
+            await file.OpenReadStream().CopyToAsync(new FileStream(severfolderClient, FileMode.Create));
+
+
+        }
+    }
+    private async Task SubmitNhanVien(EditContext editContext)
+    {
+        var result = await services.Update<UpdateNhanVien>("https://localhost:7095/api/nhanviens/Update/", nv, Guid.Parse(NhanVienId));
+        if (!string.IsNullOrEmpty(nv.AnhNhanVien))
+        {
+            if (result != null)
+            {
+                navigation.NavigateTo("/viewnhanvien");
+            }
+        }
+        else
+        {
+            await JSRuntime.InvokeAsync<object>("showAlert", "Vui lòng chọn ảnh cho nhân viên", 5);
+        }
+
+    }
+
+}

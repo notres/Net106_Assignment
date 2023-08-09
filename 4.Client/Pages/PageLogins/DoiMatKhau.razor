@@ -1,0 +1,104 @@
+﻿@page "/doimatkhau"
+@using _2.Data.ModelClient.DangNhap;
+@using _2.Data.ModelsClass;
+@using _4.Client.IServices;
+@inject IJSRuntime JSRuntime
+@inject IAllServices services
+@inject NavigationManager navigation
+<h4>Đổi mật khẩu</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <EditForm Model="modelDMK" OnValidSubmit="OnDoiMatKhau">
+            <DataAnnotationsValidator />
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label>Nhập Email</label>
+                <InputText class="form-control form-control-lg" @bind-Value="modelDMK.Email" ></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>modelDMK.Email"></ValidationMessage>
+                    <small for="Email" class="text-danger"></small>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Nhập số điện thoại</label>
+                <InputText class="form-control form-control-lg" @bind-Value="modelDMK.Sdt"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>modelDMK.Sdt"></ValidationMessage>
+                    <small for="Email" class="text-danger"></small>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Nhập lại mật khẩu cũ</label>
+                <InputText class="form-control form-control-lg" @bind-Value="modelDMK.MatKhau"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>modelDMK.MatKhau"></ValidationMessage>
+                    <small for="Email" class="text-danger"></small>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Nhập mật khẩu mới</label>
+                <InputText class="form-control form-control-lg" @bind-Value="modelDMK.MatKhauMoi"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>modelDMK.MatKhauMoi"></ValidationMessage>
+                    <small for="Email" class="text-danger"></small>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Nhập lại mật khẩu mới</label>
+                <InputText class="form-control form-control-lg" @bind-Value="modelDMK.NhapLaiMkm"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>modelDMK.NhapLaiMkm"></ValidationMessage>
+                    <small for="Email" class="text-danger"></small>
+                </div>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Thay đổi mật khẩu" class="btn btn-dark" />
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+@code {
+    private DoiMatKhauModel modelDMK = new DoiMatKhauModel();
+    string success = "Đổi mật khẩu thành công";
+    string error = "Thông tin tài khoản không chính xác";
+    string errorMK = "Mật khẩu mới không trùng khớp, hãy nhập lại";
+
+    private async Task OnDoiMatKhau()
+    {
+        var lstkh = await services.GetAll<KhachHang>("https://localhost:7095/api/KhachHangs/Get-All");
+        var tk = lstkh.FirstOrDefault(x => x.Email == modelDMK.Email && x.Sdt == modelDMK.Sdt && x.MatKhau == modelDMK.MatKhau);
+        if (modelDMK.MatKhauMoi == modelDMK.NhapLaiMkm)
+        {
+            if (modelDMK.MatKhau == modelDMK.MatKhauMoi)
+            {
+                await JSRuntime.InvokeAsync<object>("showAlert", "Mật khẩu mới và cũ không được giống nhau!", 1);
+            }
+            else
+            {
+                if (tk!= null)
+                {
+                    tk.MatKhau = modelDMK.MatKhauMoi;
+                    await services.Update("https://localhost:7095/api/KhachHangs/update/", tk, tk.Id);
+                    await JSRuntime.InvokeAsync<object>("sessionStorage.removeItem", "idgh");
+                    await JSRuntime.InvokeAsync<object>("sessionStorage.removeItem", "idkh");
+                    await JSRuntime.InvokeAsync<object>("sessionStorage.removeItem", "ten");
+                    await JSRuntime.InvokeAsync<object>("showAlert", success, 1);
+                    navigation.NavigateTo("/dangnhap",true);
+                }else
+                {
+                    await JSRuntime.InvokeAsync<object>("showAlert", error, 1);
+                }                
+            }
+
+        }
+        else
+        {
+            await JSRuntime.InvokeAsync<object>("showAlert", errorMK, 1);
+        }
+    }
+}

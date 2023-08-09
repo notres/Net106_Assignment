@@ -1,0 +1,72 @@
+﻿@page "/detailsanpham/{SanPhamId}"
+@using _2.Data.ModelsClass;
+@using _3.Admin.IServices;
+
+@inject IAllServices services
+@if (sp == null)
+{
+        <div class="spinner-border"></div>
+}
+
+else
+{
+    <div>
+        <h3>Detail</h3>
+        <hr />
+        <dl class="row">
+            <dt class="col-sm-2">
+                Ảnh
+            </dt>
+            <dd class="col-sm-10">
+                <img src="@("/AnhSanPham/"+sp.LinkAnh)" alt="@sp.LinkAnh" width="70" />
+            </dd>
+            <dt class="col-sm-2">
+                Tên
+            </dt>
+            <dd class="col-sm-10">
+                @sp.Ten
+            </dd>
+            <dt class="col-sm-2">
+                Giá Nhập
+            </dt>
+            <dd class="col-sm-10">
+                @sp.GiaNhap
+            </dd>
+            <dt class="col-sm-2">
+                Giá Bán
+            </dt>
+            <dd class="col-sm-10">
+                @sp.GiaBan
+            </dd>
+            <dt class="col-sm-2">
+                Số Lượng
+            </dt>
+            <dd class="col-sm-10">
+                @sp.SoLuong
+            </dd>
+            <dt class="col-sm-2">
+                Trạng thái
+            </dt>
+            <dd class="col-sm-10">
+                @(sp.TrangThai ? "Hoạt động" : "Ngừng hoạt động")
+            </dd>
+        </dl>
+    </div>
+    <div>
+        <a href="/editsanpham/@sp.Id">Edit</a> |
+        <a href="viewsanpham">Back to List</a>
+    </div>
+}
+
+
+@code {
+    [Parameter]
+    public string SanPhamId { get; set; }
+
+    public SanPham sp { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        sp = await services.GetById<SanPham>("https://localhost:7095/api/SanPhams/GetById/", Guid.Parse(SanPhamId));
+    }
+}

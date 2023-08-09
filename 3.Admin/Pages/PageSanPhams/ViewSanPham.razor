@@ -1,0 +1,246 @@
+﻿@page "/viewsanpham"
+@using _1.API.ViewModels.SanPham;
+@using _2.Data.ModelsClass;
+@using _3.Admin.Helper;
+@using _3.Admin.IServices;
+@using System.Linq;
+@inject IAllServices services
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+<h3>Sản Phẩm</h3>
+@if (sanPhams == null)
+{
+    <div class="spinner-border"></div>
+}
+else
+{
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <div class="row g-3 float-start">
+                <div class="col-auto ">
+                    <input class="form-control" @onchange="Search" value="@searchInput" type="text" placeholder="Nhập tên sản phẩm" />
+                </div>
+                <div class="col-auto">
+                    <select class="form-select" aria-label="Default select example" onchange="@filterByCategory" Value="@idLoai">
+                        <option value="0" selected>Tất cả loại sản phẩm</option>
+                        @foreach (var item in loais)
+                        {
+
+                            <option value="@item.Id">@item.Ten</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+        </div>
+    </div>
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Ảnh</th>
+                <th>
+                    Tên
+                </th>
+                <th>
+                    Giá Nhập
+                </th>
+                <th>
+                    Giá Bán
+                </th>
+                <th>
+                    Số Lượng
+                </th>
+                <th>
+                    Trạng Thái
+                </th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in lst)
+            {
+                <tr>
+                    <td>
+                        <img src="@("/AnhSanPham/"+item.LinkAnh)" alt="@item.LinkAnh" width="70" />
+                    </td>
+                    <td>
+                        @item.Ten
+                    </td>
+                    <td>
+                        @item.GiaNhap
+                    </td>
+                    <td>
+                        @item.GiaBan
+                    </td>
+                    <td>
+                        @item.SoLuong
+                    </td>
+                    <td>
+                        @item.TrangThai
+                    </td>
+                    <td>
+                        <a class="btn btn-success" href="/editsanpham/@item.Id">Edit</a>
+                        <a class="btn btn-success" href="/detailsanpham/@item.Id">Details</a>
+                        <button class="btn btn-danger" @onclick="()=>DeleteSanPham(item.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <Confirmation ConfirmationMessge="Bạn có chắc muốn cập nhập trạng thái của sản phẩm?"
+              ConfirmationTitle="Cập nhập trạng thái sản phẩm"
+              @ref="confirmation"
+              ConfirmationChanged="OnConfirmDeleteSanPham">
+
+    </Confirmation>
+    <a href="sanphamcreate" class="btn btn-success">Create</a>
+
+}
+
+@code {
+    private List<SanPham> sanPhams;
+    private List<Loai> loais;
+    protected Confirmation confirmation { get; set; }
+    private Guid SanPhamId { get; set; }
+    private string searchInput;
+    private string idLoai;
+    private List<SanPhamView> lst;
+    protected override async Task OnInitializedAsync()
+    {
+        sanPhams = await services.GetAll<SanPham>("https://localhost:7095/api/SanPhams/Get-All");
+        loais = await services.GetAll<Loai>("https://localhost:7095/api/Loais/Get-All");
+        lst = (from a in sanPhams.ToList()
+               join b in loais.ToList() on a.IdLoai equals b.Id
+               select new SanPhamView()
+                   {
+                       Id = a.Id,
+                       IdLoai = a.IdLoai,
+                       Ten = a.Ten,
+                       GiaNhap = a.GiaNhap,
+                       GiaBan = a.GiaBan,
+                       SoLuong = a.SoLuong,
+                       LinkAnh = a.LinkAnh,
+                       TrangThai = a.TrangThai ? "Đang bán" : "Ngưng bán"
+                   }).ToList();
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            string idnv = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idnv");
+            if (idnv == null)
+            {
+                navigation.NavigateTo("/dangnhap");
+            }
+            else
+            {
+                await OnInitializedAsync();
+            }
+        }
+    }
+    private void Search(ChangeEventArgs e)
+    {
+        searchInput = Convert.ToString(e.Value);
+        lst = (from a in sanPhams.ToList()
+               join b in loais.ToList() on a.IdLoai equals b.Id
+               select new SanPhamView()
+                   {
+                       Id = a.Id,
+                       IdLoai = a.IdLoai,
+                       Ten = a.Ten,
+                       GiaNhap = a.GiaNhap,
+                       GiaBan = a.GiaBan,
+                       SoLuong = a.SoLuong,
+                       LinkAnh = a.LinkAnh,
+                       TrangThai = a.TrangThai ? "Đang bán" : "Ngưng bán"
+                   }).ToList();
+        if (!string.IsNullOrEmpty(searchInput))
+        {
+            if (lst.Count == 0)
+            {
+                lst = lst;
+            }
+            else
+            {
+                lst = lst.Where(p => p.Ten.ToLower().Contains(searchInput.ToLower())).ToList();
+            }
+        }
+        else
+        {
+            lst = lst.Where(p => p.IdLoai == Guid.Parse(idLoai)).ToList();
+        }
+
+    }
+    private void filterByCategory(ChangeEventArgs e)
+    {
+        searchInput = null;
+        idLoai = Convert.ToString(e.Value);
+        lst = (from a in sanPhams.ToList()
+               join b in loais.ToList() on a.IdLoai equals b.Id
+               select new SanPhamView()
+                   {
+                       Id = a.Id,
+                       IdLoai = a.IdLoai,
+                       Ten = a.Ten,
+                       GiaNhap = a.GiaNhap,
+                       GiaBan = a.GiaBan,
+                       SoLuong = a.SoLuong,
+                       LinkAnh = a.LinkAnh,
+                       TrangThai = a.TrangThai ? "Đang bán" : "Ngưng bán"
+                   }).ToList();
+        if (idLoai == null)
+        {
+            lst = lst;
+        }
+        else
+        {
+            if (idLoai == "0")
+            {
+                lst = lst;
+            }
+            else
+            {
+                lst = lst.Where(x => x.IdLoai == Guid.Parse(idLoai)).ToList();
+            }
+        }
+
+    }
+    public void DeleteSanPham(Guid sanPhamId)
+    {
+        SanPhamId = sanPhamId;
+        confirmation.Show();
+    }
+    public async Task OnConfirmDeleteSanPham(bool confirm)
+    {
+        if (confirm)
+        {
+            var nv = await services.GetById<SanPham>("https://localhost:7095/api/SanPhams/GetById/", SanPhamId);
+            if (nv.TrangThai == false)
+            {
+                await JSRuntime.InvokeAsync<object>("showAlert", "Sản phẩm đã ngưng bán rồi rồi", 5);
+            }
+            else
+            {
+                nv.TrangThai = false;
+                await services.Update<SanPham>("https://localhost:7095/api/SanPhams/Update/", nv, SanPhamId);
+                sanPhams = await services.GetAll<SanPham>("https://localhost:7095/api/SanPhams/Get-All");
+                loais = await services.GetAll<Loai>("https://localhost:7095/api/Loais/Get-All");
+                lst = (from a in sanPhams.ToList()
+                       join b in loais.ToList() on a.IdLoai equals b.Id
+                       select new SanPhamView()
+                           {
+                               Id = a.Id,
+                               IdLoai = a.IdLoai,
+                               Ten = a.Ten,
+                               GiaNhap = a.GiaNhap,
+                               GiaBan = a.GiaBan,
+                               SoLuong = a.SoLuong,
+                               LinkAnh = a.LinkAnh,
+                               TrangThai = a.TrangThai ? "Đang bán" : "Ngưng bán"
+                           }).ToList();
+            }
+
+        }
+    }
+}

@@ -1,0 +1,176 @@
+﻿@page "/nhanviencreate"
+@using _1.API.ViewModels.NhanVien;
+@using _2.Data.ModelsClass;
+@using _3.Admin.IServices;
+@using Microsoft.JSInterop
+@inject IAllServices services
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject IWebHostEnvironment _webHost
+<h3>Create</h3>
+
+<EditForm Model="crNV" OnValidSubmit="SubmitNhanVien">
+    <DataAnnotationsValidator />
+    @if (errorEmail != null)
+    {
+        <div class="alert alert-danger">@errorEmail</div>
+    }
+    <div class="form-group">
+        <label for="Ten" class="control-label">Họ và tên</label>
+        <InputText class="form-control" @bind-Value="crNV.Ten"></InputText>
+        <ValidationMessage For="()=>crNV.Ten"></ValidationMessage>
+        <small for="nameHelp" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label for="Email" class="control-label">Email</label>
+        <InputText class="form-control" @bind-Value="crNV.Email"></InputText>
+        <ValidationMessage For="()=>crNV.Email"></ValidationMessage>
+        <small for="Email" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label for="MatKhau" class="control-label">Mật Khẩu</label>
+        <InputText class="form-control" @bind-Value="crNV.MatKhau"></InputText>
+        <ValidationMessage For="()=>crNV.MatKhau"></ValidationMessage>
+        <small for="MatKhau" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label for="DiaChi" class="control-label">Địa Chỉ</label>
+        <InputText class="form-control" @bind-Value="crNV.DiaChi"></InputText>
+        <ValidationMessage For="()=>crNV.DiaChi"></ValidationMessage>
+        <small for="DiaChi" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label for="Sdt" class="control-label">Số điện thoại</label>
+        <InputText class="form-control" @bind-Value="crNV.Sdt"></InputText>
+        <ValidationMessage For="()=>crNV.Sdt"></ValidationMessage>
+        <small for="Sdt" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label for="GioiTinh" class="control-label">Giới Tính</label>
+        <InputSelect class="form-control" @bind-Value="crNV.GioiTinh">
+            <option value="true">Nam</option>
+            <option value="false">Nữ</option>
+        </InputSelect>
+        <ValidationMessage For="()=>crNV.GioiTinh"></ValidationMessage>
+        <small for="GioiTinh" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label asp-for="TrangThai" class="control-label">Trạng thái</label>
+        <InputSelect class="form-control" @bind-Value="crNV.TrangThai">
+            <option value="true">Đang hoạt động</option>
+            <option value="false">Ngừng hoạt động</option>
+        </InputSelect>
+        <ValidationMessage For="()=>crNV.TrangThai"></ValidationMessage>
+        <small for="TrangThai" class="text-danger"></small>
+    </div>
+    <div class="form-group">
+        <label for="IdChucVu" class="control-label">Chức Vụ</label>
+        <InputSelect class="form-control" @bind-Value="crNV.IdChucVu">
+            @if (chucVus == null)
+            {
+                <div class="spinner-border"></div>
+            }
+            else
+            {
+                <option value="" selected>Chọn Chức Vụ</option>
+                @foreach (var item in chucVus)
+                {
+                    <option value="@item.Id">@item.Ten</option>
+                }
+            }
+
+        </InputSelect>
+        <ValidationMessage For="()=>crNV.IdChucVu"></ValidationMessage>
+        @if (errorChucVu != null)
+        {
+            <div class="alert alert-danger">@errorChucVu</div>
+        }
+        <small for="IdChucVu" class="text-danger"></small>
+    </div>
+    <div class="col-md-2">
+        <div class="row">
+            <label for="AnhNhanVien" class="control-label">Ảnh</label>
+        </div>
+
+        @if (!string.IsNullOrEmpty(ImageUrl))
+        {
+            <img src="@ImageUrl" alt="Ảnh Nhân viên" width="100" />
+        }
+        <div class="custom-file mt-2">
+            <InputFile class="form-control form-control-sm form-control-file" @bind-Value="crNV.AnhNhanVien" OnChange="HandleSelectedFile" />
+            @*            <ValidationMessage For="()=>crNV.AnhNhanVien"></ValidationMessage>
+            <small for="AnhNhanVien" class="text-danger"></small>*@
+        </div>
+    </div>
+    <br />
+    <button type="submit" class="btn btn-primary">Create</button>
+    <a href="viewnhanvien">Back to List</a>
+</EditForm>
+@code {
+    private CreateNhanVien crNV = new CreateNhanVien();
+    private List<ChucVu> chucVus;
+    private List<NhanVien> nhanViens;
+    private string errorChucVu;
+    private string errorEmail;
+    private string ImageUrl;
+    private string folder;
+
+    protected override async Task OnInitializedAsync()
+    {
+        chucVus = await services.GetAll<ChucVu>("https://localhost:7095/api/ChucVus/Get-All");
+    }
+    private async Task HandleSelectedFile(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            var buffer = new byte[file.Size];
+            await file.OpenReadStream().ReadAsync(buffer);
+            var imageUrl = $"data:image/png;base64,{Convert.ToBase64String(buffer)}";
+            ImageUrl = imageUrl;
+
+            string uploadFolder = Path.Combine(_webHost.WebRootPath, "AnhNhanVien");
+            string uploadFolderClient = Path.Combine("D:\\cSharp\\NET106\\Net106_Assignment-master\\Net106_Assignment-master\\4.Client\\wwwroot\\", "AnhNhanVienClient");
+
+            string folder = Guid.NewGuid().ToString() + "_" + file.Name;
+
+            crNV.AnhNhanVien = folder;
+
+            string severfolder = Path.Combine(uploadFolder, folder);
+            string severfolderClient = Path.Combine(uploadFolderClient, folder);
+
+            await file.OpenReadStream().CopyToAsync(new FileStream(severfolder, FileMode.Create));
+            await file.OpenReadStream().CopyToAsync(new FileStream(severfolderClient, FileMode.Create));
+
+
+        }
+    }
+    private async Task SubmitNhanVien(EditContext editContext)
+    {
+        nhanViens = await services.GetAll<NhanVien>("https://localhost:7095/api/nhanviens/Get-All");
+        var nv = nhanViens.FirstOrDefault(x => x.Email == crNV.Email);
+        if (nv != null)
+        {
+            errorEmail = "Email đã được sử dụng, hãy nhập email khác";
+            crNV.Email = null;
+            errorChucVu = null;
+        }
+        else if (crNV.IdChucVu == Guid.Empty)
+        {
+            errorChucVu = "Vui lòng nhập chức vụ";
+            errorEmail = null;
+        }
+        else if (string.IsNullOrEmpty(crNV.AnhNhanVien))
+        {
+            errorEmail = null;
+            errorChucVu = null;
+            await JSRuntime.InvokeAsync<object>("showAlert", "Vui lòng chọn ảnh cho nhân viên", 5);
+        }
+        else
+        {
+            await services.Add("https://localhost:7095/api/NhanViens/", crNV);
+            navigation.NavigateTo("/viewnhanvien");
+        }
+
+    }
+}

@@ -1,0 +1,78 @@
+﻿@page "/thongtinkhachhang"
+@using _2.Data.ModelsClass;
+@using _4.Client.IServices;
+@inject IAllServices services
+@inject IJSRuntime JSRuntime
+
+@if (kh == null)
+{
+    <div class="spinner-border"></div>
+}
+else
+{
+    <h1 style="text-align:center">Thông Tin Cá Nhân</h1>
+
+    <div>
+
+        <hr />
+        <dl class="row">
+
+            <dt class="col-sm-4">
+                Tên
+            </dt>
+            <dd class="col-sm-8">
+                @kh.Ten
+            </dd>
+            <dt class="col-sm-4">
+                Email
+            </dt>
+            <dd class="col-sm-8">
+                @kh.Email
+            </dd>
+
+            <dt class="col-sm-4">
+                Địa chỉ
+            </dt>
+            <dd class="col-sm-8">
+                @kh.DiaChi
+            </dd>
+            <dt class="col-sm-4">
+                Giới Tính
+            </dt>
+            @{
+                if (kh.GioiTinh == true)
+                {
+                    gt = "Nam";
+                }
+                else
+                {
+                    gt = "Nữ";
+                }
+            }
+            <dd class="col-sm-8">
+                @(kh.GioiTinh == true ? "Nam" : "Nữ")
+            </dd>
+            <dt class="col-sm-4">
+                Số điện thoại
+            </dt>
+            <dd class="col-sm-8">
+                @kh.Sdt
+            </dd>
+        </dl>
+    </div>
+    <div>
+        <a class="btn btn-outline-danger" href="doimatkhau">Đổi mật khẩu</a>
+    </div>
+}
+
+
+
+@code {
+    private KhachHang kh { get; set; }
+    string gt;
+    protected override async Task OnInitializedAsync()
+    {
+        string idkh = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idkh");
+        kh = await services.GetById<KhachHang>("https://localhost:7095/api/KhachHangs/getbyid/", Guid.Parse(idkh));
+    }
+}

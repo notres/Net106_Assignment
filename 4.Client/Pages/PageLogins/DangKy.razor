@@ -1,0 +1,134 @@
+﻿@page "/dangky"
+@using _1.API.ViewModels.KhachHang;
+@using _2.Data.ModelsClass;
+@using _4.Client.IServices;
+@inject IAllServices services
+@inject NavigationManager navigation
+@inject IJSRuntime JSRuntime
+<EditForm Model="kh" OnValidSubmit="OnSignIn">
+    <DataAnnotationsValidator />
+    <div class="login" style="text-align : center">
+        <div class="login-title"><h1>Đăng ký tài khoản</h1></div>
+        <div class="mb-3 row">
+            <div class="col-sm-2"></div>
+            <label class="col-sm-2 col-form-label">Họ và tên</label>
+            <div class="col-sm-5">
+                <InputText class="form-control" @bind-Value="kh.Ten"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>kh.Ten"></ValidationMessage>
+                    <small class="text-danger"></small>
+                </div>
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <div class="col-sm-2"></div>
+            <label class="col-sm-2 col-form-label">Email</label>
+            <div class="col-sm-5">
+                <InputText class="form-control" @bind-Value="kh.Email"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>kh.Email"></ValidationMessage>
+                    <small class="text-danger"></small>
+                    @if (errorEmail != null)
+                    {
+                        <small class="text-danger">@errorEmail</small>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <div class="col-sm-2"></div>
+            <label class="col-sm-2 col-form-label">Mật khẩu</label>
+            <div class="col-sm-5">
+                <InputText class="form-control" @bind-Value="kh.MatKhau" type="password"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>kh.MatKhau"></ValidationMessage>
+                    <small class="text-danger"></small>
+                </div>
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <div class="col-sm-2"></div>
+            <label class="col-sm-2 col-form-label">Địa chỉ</label>
+            <div class="col-sm-5">
+                <InputText class="form-control" @bind-Value="kh.DiaChi"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>kh.DiaChi"></ValidationMessage>
+                    <small class="text-danger"></small>
+                </div>
+            </div>
+        </div>
+        <div class="mb-3 row">
+            <div class="col-sm-2"></div>
+            <label class="col-sm-2 col-form-label">Giới tính</label>
+            <div class="col-sm-5">
+                <InputSelect class="form-control" @bind-Value="kh.GioiTinh">
+                    <option value="true">Nam</option>
+                    <option value="false">Nữ</option>
+                </InputSelect>
+
+                <div style="height:20px">
+                    <ValidationMessage For="()=>kh.GioiTinh"></ValidationMessage>
+                    <small class="text-danger"></small>
+                </div>
+            </div>
+
+        </div>
+        <div class="mb-3 row">
+            <div class="col-sm-2"></div>
+            <label class="col-sm-2 col-form-label">Số điện thoại</label>
+            <div class="col-sm-5">
+                <InputText class="form-control" @bind-Value="kh.Sdt"></InputText>
+                <div style="height:20px">
+                    <ValidationMessage For="()=>kh.Sdt"></ValidationMessage>
+                    <small class="text-danger"></small>
+                    @if (errorSdt != null)
+                    {
+                        <small class="text-danger">@errorSdt</small>
+                    }
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-dark">
+            Đăng Ký
+        </button>
+        <div class="dangNhap">
+            Bạn đã có tài khoản? <a href="dangnhap" class="textLogin">Đăng nhập</a>
+        </div>
+        <div class="quenMK">
+            <a href="quenmatkhau" class="textLogin">Bạn quên mật khẩu ?</a>
+        </div>
+    </div>
+</EditForm>
+@code {
+    private CreateKhachHang kh = new CreateKhachHang();
+    private GioHang gh;
+    string errorEmail;
+    string errorSdt;
+    string success = "Đăng ký thành công";
+    private async Task OnSignIn(EditContext editContext)
+    {
+        var lstKH = await services.GetAll<KhachHang>("https://localhost:7095/api/KhachHangs/Get-All");
+        if (lstKH.FirstOrDefault(x => x.Email == kh.Email) != null)
+        {
+            errorEmail = "Email đã tồn tại";
+        }
+        else if (lstKH.FirstOrDefault(x => x.Sdt == kh.Sdt) != null)
+        {
+            errorSdt = "Số điện thoại đã tồn tại";
+        }
+        else
+        {
+            var oke = await services.Add("https://localhost:7095/api/KhachHangs/", kh);
+            if (oke != null)
+            {
+                await JSRuntime.InvokeAsync<object>("showAlert", success, 1);
+                navigation.NavigateTo("/dangnhap");
+            }
+            else
+            {
+                navigation.NavigateTo("/dangky");
+            }
+        }
+
+    }
+}

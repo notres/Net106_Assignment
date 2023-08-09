@@ -1,0 +1,170 @@
+﻿@page "/editsanpham/{SanPhamId}"
+@using _1.API.ViewModels.SanPham;
+@using _2.Data.ModelsClass;
+@using _3.Admin.IServices;
+@inject IAllServices services
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject IWebHostEnvironment _webHost
+@if (sp == null)
+{
+        <div class="spinner-border"></div>
+}
+
+else
+{
+    <h3>Edit </h3>
+    <EditForm Model="sp" OnValidSubmit="SubmitSanPham">
+        <DataAnnotationsValidator />
+        @if (errorGia != null)
+        {
+            <div class="alert alert-danger">@errorGia</div>
+        }
+        <div class="form-group">
+            <label for="Ten" class="control-label">Họ và tên</label>
+            <InputText class="form-control" @bind-Value="sp.Ten" readonly></InputText>
+            <ValidationMessage For="()=>sp.Ten"></ValidationMessage>
+            <small for="nameHelp" class="text-danger"></small>
+        </div>
+        <div class="form-group">
+            <label for="GiaNhap" class="control-label">Giá nhập</label>
+            <input class="form-control" @bind-value="sp.GiaNhap" type="number">
+            <ValidationMessage For="()=>sp.GiaNhap"></ValidationMessage>
+            <small for="GiaNhap" class="text-danger"></small>
+        </div>
+        <div class="form-group">
+            <label for="GiaBan" class="control-label">Giá Bán</label>
+            <input class="form-control" @bind-value="sp.GiaBan" type="number">
+            <ValidationMessage For="()=>sp.GiaBan"></ValidationMessage>
+            <small for="GiaBan" class="text-danger"></small>
+        </div>
+        <div class="form-group">
+            <label for="SoLuong" class="control-label">Số Lượng</label>
+            <input class="form-control" @bind-value="sp.SoLuong" type="number">
+            <ValidationMessage For="()=>sp.SoLuong"></ValidationMessage>
+            <small for="SoLuong" class="text-danger"></small>
+        </div>
+        <div class="form-group">
+            <label for="TrangThai" class="control-label">Trạng thái</label>
+            <InputSelect class="form-control" @bind-Value="sp.TrangThai">
+                <option value="true">Đang Bán</option>
+                <option value="false">Ngừng Bán</option>
+            </InputSelect>
+            <ValidationMessage For="()=>sp.TrangThai"></ValidationMessage>
+            <small for="TrangThai" class="text-danger"></small>
+        </div>
+        <div class="form-group">
+            <label for="IdLoai" class="control-label">Loại sản phẩm</label>
+            <InputSelect class="form-control" @bind-Value="sp.IdLoai">
+                @if (loais == null)
+                {
+                        <div class="spinner-border"></div>
+                }
+                else
+                {
+                    @foreach (var item in loais)
+                    {
+                        <option value="@item.Id">@item.Ten</option>
+                    }
+                }
+
+            </InputSelect>
+            <ValidationMessage For="()=>sp.IdLoai"></ValidationMessage>
+            <small for="IdLoai" class="text-danger"></small>
+        </div>
+        <div class="col-md-2">
+            <div class="row">
+                <label for="LinkAnh" class="control-label">Ảnh</label>
+            </div>
+
+            @if (!string.IsNullOrEmpty(ImageUrl))
+            {
+                <img src="@ImageUrl" alt="Ảnh Sản phẩm" width="100" />
+            }
+            else
+            {
+                <img src="@("/AnhSanPham/"+sp.LinkAnh)" alt="Ảnh Sản phẩm" width="100" />
+            }
+            <div class="custom-file mt-2">
+                <InputFile class="form-control form-control-sm form-control-file" @bind-Value="sp.LinkAnh" OnChange="HandleSelectedFile" />
+@*                <ValidationMessage For="()=>sp.LinkAnh"></ValidationMessage>
+                <small for="TrangThai" class="text-danger"></small>
+                <span for="LinkAnh" class="text-danger"></span>*@
+            </div>
+        </div>
+        <br />
+        <button type="submit" class="btn btn-primary">Edit</button>
+        <a href="viewsanpham">Back to List</a>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public string SanPhamId { get; set; }
+
+    private UpdateSanPham sp;
+    private List<Loai> loais;
+    private string ImageUrl;
+    private string errorGia;
+
+    protected async override Task OnInitializedAsync()
+    {
+        var upnv = await services.GetById<SanPham>("https://localhost:7095/api/SanPhams/GetById/", Guid.Parse(SanPhamId));
+        loais = await services.GetAll<Loai>("https://localhost:7095/api/Loais/Get-All");
+        sp = new UpdateSanPham();
+        sp.Ten = upnv.Ten;
+        sp.LinkAnh = upnv.LinkAnh;
+        sp.IdLoai = upnv.IdLoai;
+        sp.GiaNhap = upnv.GiaNhap;
+        sp.GiaBan = upnv.GiaBan;
+        sp.SoLuong = upnv.SoLuong;
+        sp.TrangThai = upnv.TrangThai;
+
+    }
+    private async Task HandleSelectedFile(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            var buffer = new byte[file.Size];
+            await file.OpenReadStream().ReadAsync(buffer);
+            var imageUrl = $"data:image/png;base64,{Convert.ToBase64String(buffer)}";
+            ImageUrl = imageUrl;
+
+            string uploadFolder = Path.Combine(_webHost.WebRootPath, "AnhSanPham");
+            string uploadFolderClient = Path.Combine("D:\\cSharp\\NET106\\Net106_Assignment-master\\Net106_Assignment-master\\4.Client\\wwwroot\\", "AnhSanPhamClient");
+
+            string folder = Guid.NewGuid().ToString() + "_" + file.Name;
+
+            sp.LinkAnh = folder;
+
+            string severfolder = Path.Combine(uploadFolder, folder);
+            string severfolderClient = Path.Combine(uploadFolderClient, folder);
+
+            await file.OpenReadStream().CopyToAsync(new FileStream(severfolder, FileMode.Create));
+            await file.OpenReadStream().CopyToAsync(new FileStream(severfolderClient, FileMode.Create));
+
+
+        }
+    }
+    private async Task SubmitSanPham(EditContext editContext)
+    {
+
+        if (sp.GiaNhap > sp.GiaBan || sp.GiaBan < 0 || sp.GiaNhap < 0 || sp.GiaBan == sp.GiaNhap)
+        {
+            errorGia = "Sai giá, nhập lại giá";
+            sp.GiaNhap = 0;
+            sp.GiaBan = 0;
+        }else if (string.IsNullOrEmpty(sp.LinkAnh))
+        {
+            errorGia = null;
+            await JSRuntime.InvokeAsync<object>("showAlert", "Vui lòng chọn ảnh cho sản phẩm", 5);
+        }
+        else
+        {
+            await services.Update<UpdateSanPham>("https://localhost:7095/api/SanPhams/Update/", sp, Guid.Parse(SanPhamId));
+            navigation.NavigateTo("/viewsanpham");
+        }
+    }
+
+}

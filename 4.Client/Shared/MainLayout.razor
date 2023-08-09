@@ -1,0 +1,71 @@
+﻿@using _2.Data.ModelsClass;
+@using Microsoft.JSInterop;
+@using _4.Client.IServices;
+@inject IJSRuntime JSRuntime
+@inject IAllServices services
+@inject NavigationManager navigation
+@inherits LayoutComponentBase
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <div class="header_login">
+                <div class="container">
+                    @if (name == null)
+                    {
+                        <div class="btn-group" role="group">
+                            <a href="dangnhap" class="btn btn-outline-success">ĐĂNG NHẬP</a>
+                            <a href="dangky" class="btn btn-outline-info">ĐĂNG KÝ</a>
+                        </div>
+
+                    }
+                    @if (name != null)
+                    {
+                        <div class="btn-group" role="group">
+                            <a class="btn btn-outline-danger" @onclick="dangxuat"> Đăng Xuất</a>
+                            <a class="btn btn-outline-danger" href="thongtinkhachhang">XIN CHÀO: @name!</a>
+                            <a class=" nav-link active btn position-relative"
+                               aria-current="page"
+                               style="border: 0px;"
+                               href="/buynow">
+                                <img src="/cart/shopping-cart.png" />
+                                @*                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            @ItemCount
+                            </span>*@
+                            </a>
+                        </div>
+                    }
+
+                </div>
+            </div>
+        </div>
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+@code {
+    //private List<GioHangChiTiet> gioHangChiTiets = new List<GioHangChiTiet>();
+    //private List<SanPham> sanPhams;
+    //public int ItemCount;
+    private string name;
+    protected override async Task OnInitializedAsync()
+    {
+        //sanPhams = await services.GetAll<SanPham>("https://localhost:7095/api/SanPhams/Get-All");
+        //gioHangChiTiets = await services.GetAll<GioHangChiTiet>("https://localhost:7095/api/GioHangChiTiets/Get-All");
+        name = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "ten");
+        //string idgh = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "idgh");
+        //ItemCount = gioHangChiTiets.Where(x => x.IdGioHang.ToString() == idgh).Sum(x => x.SoLuong);
+    }
+    private async Task dangxuat()
+    {
+        await JSRuntime.InvokeAsync<object>("sessionStorage.removeItem", "idgh");
+        await JSRuntime.InvokeAsync<object>("sessionStorage.removeItem", "idkh");
+        await JSRuntime.InvokeAsync<object>("sessionStorage.removeItem", "ten");
+        await OnInitializedAsync();
+        navigation.NavigateTo("/", true);
+    }
+}
